@@ -1,5 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -7,6 +9,7 @@ using UnityEngine.UI;
 
 public class MainManager : MonoBehaviour
 {
+
     public Brick BrickPrefab;
     public int LineCount = 6;
     public Rigidbody Ball;
@@ -22,7 +25,10 @@ public class MainManager : MonoBehaviour
 
     [SerializeField] private TextMeshProUGUI currenPlayer;
 
-
+    private void Awake()
+    {
+        LoadScore();
+    }
     // Start is called before the first frame update
     void Start()
     {
@@ -40,7 +46,6 @@ public class MainManager : MonoBehaviour
                 brick.onDestroyed.AddListener(AddPoint);
             }
         }
-        currenPlayer.text = MenuScene.instance.playerName.text;
 
     }
 
@@ -72,7 +77,6 @@ public class MainManager : MonoBehaviour
     {
         m_Points += point;
         ScoreText.text = $"Score : {m_Points}";
-        highscoretext.text = "Best Score :" + currenPlayer.text + " : " + ScoreText.text;
     }
 
     public void GameOver()
@@ -84,11 +88,67 @@ public class MainManager : MonoBehaviour
     public void ExitToMainMenu()
     {
         SceneManager.LoadScene(0);
+        SaveScore();
     }
 
-    public int GetScore()
+    [System.Serializable]
+    class SaveData
     {
-        int score = m_Points;
-        return score;
+        public string score;
+    }
+
+    public void SaveScore()
+    {
+        string path = Application.persistentDataPath + "/savefile.json";
+        if (File.Exists(path))
+        {
+            string json = File.ReadAllText(path);
+            SaveData save = JsonUtility.FromJson<SaveData>(json);
+            int currentHighScore;
+            int newScore;
+
+            // Try to parse scores
+            if (int.TryParse(save.score.Split(':').Last().Trim(), out currentHighScore) && int.TryParse(ScoreText.text.Split(':').Last().Trim(), out newScore))
+            {
+                // Only save if new score is higher
+                if (newScore > currentHighScore)
+                {
+                    SaveData newSave = new SaveData();
+                    newSave.score = ScoreText.text;
+                    string jsonNew = JsonUtility.ToJson(newSave);
+                    File.WriteAllText(Application.persistentDataPath + "/savefile.json", jsonNew);
+                }
+            }
+            else
+            {
+                // Handle invalid score format
+            }
+        }
+        else
+        {
+            // File doesn't exist, save score directly
+            SaveData save = new SaveData();
+            save.score = ScoreText.text;
+            string json = JsonUtility.ToJson(save);
+            File.WriteAllText(Application.persistentDataPath + "/savefile.json", json);
+        }
+    }
+
+    public void LoadScore()
+    {
+        string path = Application.persistentDataPath + "/savefile.json";
+        if (File.Exists(path))
+        {
+            string json = File.ReadAllText(path);
+            SaveData save = JsonUtility.FromJson<SaveData>(json);
+            highscoretext.text = save.score;
+        }
+        else
+        {
+            // File doesn't exist, initialize high score
+            highscoretext.text = "Score : 0";
+        }
     }
 }
+
+
